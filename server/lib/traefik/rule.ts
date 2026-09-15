@@ -63,3 +63,17 @@ export function computeRoutePriority(
     }
     return p;
 }
+
+// The bot-detection challenge page loads its fingerprint script from an absolute
+// /crowdsec-internal path, so a path-limited router has to match it too or the script 404s before
+// the bouncer sees it. The bouncer answers those requests from AppSec and never calls next, so they
+// don't reach the service: github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin#appsec-bot-detection-route-crowdsec-internal
+export function appendCrowdsecChallengePath(
+    rule: string,
+    hostRule: string
+): string {
+    if (rule === hostRule) {
+        return rule; // no path clause, the host rule already matches the prefix
+    }
+    return `(${rule}) || (${hostRule} && PathPrefix(\`/crowdsec-internal\`))`;
+}

@@ -305,6 +305,7 @@ export const configSchema = z
                     .optional()
                     .default(["newt", "wireguard", "local"]),
                 allow_raw_resources: z.boolean().optional().default(true),
+                bot_detection: z.boolean().optional().default(false),
                 file_mode: z.boolean().optional().default(false),
                 pp_transport_prefix: z
                     .string()

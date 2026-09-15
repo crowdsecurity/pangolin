@@ -84,6 +84,13 @@ func installCrowdsec(config Config, installDir string) error {
 		os.Exit(1)
 	}
 
+	if config.EnableBotDetection {
+		if err := enableTraefikBotDetection("config/config.yml"); err != nil {
+			fmt.Printf("Error enabling bot detection in config: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
 	if err := startContainers(config.InstallationContainerType); err != nil {
 		return fmt.Errorf("failed to start containers: %v", err)
 	}
@@ -276,4 +283,33 @@ func printLogrotateConfig(logPath string) {
       copytruncate
   }
 `, logPath)
+}
+
+// enableTraefikBotDetection appends instead of re-marshalling so config.yml keeps its comments and key order.
+func enableTraefikBotDetection(configPath string) error {
+	content, err := os.ReadFile(configPath)
+	if err != nil {
+		return fmt.Errorf("error reading %s: %w", configPath, err)
+	}
+
+	var appConfig map[string]any
+	if err := yaml.Unmarshal(content, &appConfig); err != nil {
+		return fmt.Errorf("error parsing %s: %w", configPath, err)
+	}
+
+	if _, ok := appConfig["traefik"]; ok {
+		fmt.Printf("%s already has a traefik section: add \"bot_detection: true\" under it to finish enabling bot detection\n", configPath)
+		return nil
+	}
+
+	f, err := os.OpenFile(configPath, os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("error opening %s: %w", configPath, err)
+	}
+	defer f.Close()
+
+	if _, err := f.WriteString("\ntraefik:\n    bot_detection: true\n"); err != nil {
+		return fmt.Errorf("error writing %s: %w", configPath, err)
+	}
+	return nil
 }
