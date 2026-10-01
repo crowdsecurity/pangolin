@@ -27,7 +27,12 @@ import { sanitize, encodePath, validatePathRewriteConfig } from "./utils";
 import regionalCache from "@server/lib/cache";
 import { TargetWithSite } from "./types";
 import { buildWildcardTls } from "./certResolver";
-import { buildHostRule, appendPathMatch, computeRoutePriority } from "./rule";
+import {
+    buildHostRule,
+    appendPathMatch,
+    computeRoutePriority,
+    appendCrowdsecChallengePath
+} from "./rule";
 import {
     buildHttpLoadBalancerServers,
     buildStickySessionCookie,
@@ -419,13 +424,17 @@ export async function getTraefikConfig(
             }
 
             // Build routing rules
-            let rule = buildHostRule(fullDomain);
+            const hostRule = buildHostRule(fullDomain);
+            let rule = hostRule;
             const priority = computeRoutePriority(
                 resource.priority,
                 resource.path,
                 resource.pathMatchType
             );
             rule = appendPathMatch(rule, resource.path, resource.pathMatchType);
+            if (config.getRawConfig().traefik.bot_detection) {
+                rule = appendCrowdsecChallengePath(rule, hostRule);
+            }
 
             config_output.http.routers![routerName] = {
                 entryPoints: [

@@ -60,7 +60,8 @@ import { buildWildcardTls } from "@server/lib/traefik/certResolver";
 import {
     buildHostRule,
     appendPathMatch,
-    computeRoutePriority
+    computeRoutePriority,
+    appendCrowdsecChallengePath
 } from "@server/lib/traefik/rule";
 import {
     buildHttpLoadBalancerServers,
@@ -513,7 +514,8 @@ export async function getTraefikConfig(
                 ...additionalMiddlewares
             ];
 
-            let rule: string = buildHostRule(fullDomain, resource.wildcard);
+            const hostRule = buildHostRule(fullDomain, resource.wildcard);
+            let rule: string = hostRule;
 
             const priority = computeRoutePriority(
                 resource.priority,
@@ -697,6 +699,9 @@ export async function getTraefikConfig(
             }
 
             rule = appendPathMatch(rule, resource.path, resource.pathMatchType);
+            if (config.getRawConfig().traefik.bot_detection) {
+                rule = appendCrowdsecChallengePath(rule, hostRule);
+            }
 
             config_output.http.routers![routerName] = {
                 entryPoints: [
